@@ -7,9 +7,8 @@ using StellarDotnetSdk.Responses.SorobanRpc;
 
 public class Example
 {
-    public static async Task Main(string[] args)
+    public static async Task Main()
     {
-
         /* ---------------------------------------------------- Set up project ---------------------------------------------------- */
 
         // Lets start by defining the network we will be using, set up the soroban server and create a keypair for demonstration
@@ -91,7 +90,7 @@ public class Example
         /* --------------------------------------------- Validate deposit transaction --------------------------------------------- */
 
         // Check the transaction status until it is successful or failed
-        GetTransactionResponse? checkedTx = null;
+        GetTransactionResponse? checkedTx;
         Console.WriteLine("Checking transaction...");
         while (true)
         {
