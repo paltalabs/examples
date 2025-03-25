@@ -42,7 +42,8 @@
 # NuGet
 *.nuget.props
 *.nuget.targets
-packages/dotnet-sdk/packages/
+*.nupkg
+*.nuspec
 
 # .NET Core
 project.lock.json
