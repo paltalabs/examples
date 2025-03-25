@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Defindex_SDK_Demo</RootNamespace>
+    <AssemblyName>defindex-sdk-demo</AssemblyName>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <StartupObject>Example</StartupObject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DeFindex.Sdk" Version="0.1.4" />
+    <PackageReference Include="stellar-dotnet-sdk" Version="13.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
+  </ItemGroup>
+
+</Project>
