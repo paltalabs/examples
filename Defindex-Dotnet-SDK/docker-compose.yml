@@ -1,0 +1,9 @@
+services:
+  dotnet:
+    image: mcr.microsoft.com/dotnet/sdk:8.0
+    container_name: defindex-dotnet-sdk
+    volumes:
+      - .:/workspace
+    tty: true
+    stdin_open: true
+    working_dir: /workspace/

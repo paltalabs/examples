@@ -19,6 +19,15 @@ defindex-sdk-demo
 - **Example.cs**: Contains the `Main` method that starts the application and configures the host.
 - **defindex-sdk-demo.csproj**: Defines the dependencies, build configuration, and other metadata of the project.
 
+## Docker
+
+If you don't want to install the .NET SDK, you can run the project using Docker.
+
+```
+docker compose up -d
+docker exec -it defindex-dotnet-sdk bash
+```
+
 ## How to Run the Project
 
 1. Make sure you have the .NET SDK installed.
