@@ -4,7 +4,7 @@ This example demonstrates how to implement **fee-bump transactions** for DeFinde
 
 ## Overview
 
-A **fee-bump transaction** is a Stellar capability (CAP-0015) that enables one account to pay the transaction fees for an existing signed transaction without requiring the original transaction to be re-signed or re-created. This is particularly useful for wallet providers who want to offer "gasless" transactions to their users.
+A **fee-bump transaction** is a Stellar capability (CAP-0015) that enables one account to pay the transaction fees for an existing signed transaction without requiring the original transaction to be re-signed or re-created. This is particularly useful for wallet providers who want to offer "gasless" transactions to their users. For more info read: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929  
 
 ## How Fee-Bump Transactions Work
 
@@ -18,7 +18,7 @@ A fee-bump transaction consists of two parts:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │  1. Get unsigned transaction from DeFindex SDK              │
-│     ├─ depositToVault() or withdrawFromVault()             │
+│     ├─ depositToVault() or withdrawShares()                │
 │     └─ Returns transaction XDR (unsigned)                  │
 └─────────────────────────────────────────────────────────────┘
                            ↓
@@ -30,7 +30,7 @@ A fee-bump transaction consists of two parts:
                            ↓
 ┌─────────────────────────────────────────────────────────────┐
 │  3. Create fee-bump transaction                            │
-│     ├─ Calculate dynamic fee                               │
+│     ├─ Use inner transaction fee (see Fee Rules below)     │
 │     ├─ buildFeeBumpTransaction(sponsor, fee, innerTx)     │
 │     └─ Wraps the signed inner transaction                  │
 └─────────────────────────────────────────────────────────────┘
@@ -53,31 +53,42 @@ A fee-bump transaction consists of two parts:
 ### 1. **Inner Transaction Generation**
    - The original transaction is created by the DeFindex SDK
    - Contains the actual operations (deposit, withdraw, etc.)
-   - Must be signed by the user/caller
+   - Containts the necesary Resource Fee and Inclusion Fee.
+   - Must be signed by the user/depositor
 
 ### 2. **User Signature**
    - The user signs the inner transaction with their keypair
-   - This signature is preserved in the final fee-bump transaction
-   - No need to re-sign or modify the original transaction
 
 ### 3. **Fee-Bump Wrapping**
    - A new transaction envelope wraps the signed inner transaction
    - The wrapper includes the fee account (sponsor)
-   - Fee calculation must account for both inner and outer transactions
+   - Fee-bump transaction fee should be equal to inner transaction fee
 
-### 4. **Sponsor Payment**
+### 4. **Sponsor Payment and Signature**
    - The sponsor's account pays the transaction fees
-   - The fee account balance must be sufficient to cover the calculated fees
-   - The original sequence number comes from the inner transaction's source account
+   - The sponsor needs to sign the wrapped (outer) transaction.
 
-### 5. **Dynamic Fee Calculation**
-   ```typescript
-   // Fee bump fee must be at least: innerTxFee + (baseFee * operations)
-   const minFeeBumpFee = innerTxFee + baseFee * operationCount;
-   
-   // Can apply network multiplier for priority
-   const dynamicFee = Math.max(minFeeBumpFee, innerTxFee * networkMultiplier);
-   ```
+### 5. **Fee-Bump Fee Rules**
+The fee on the outer fee-bump transaction must satisfy Stellar's rules:
+
+- It must be at least the fee of the inner transaction.
+
+In this repository's scripts, the API already simulates resource usage and sets an appropriate fee on the inner transaction.
+
+```ts
+const innerTxFee = parseInt(transaction.fee, 10);
+// Optionally bump above inner fee for priority
+const feeBumpFee = Math.max(innerTxFee, innerTxFee * 2);
+const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
+  sponsorKeypair,
+  feeBumpFee.toString(),
+  transaction,
+  stellarNetwork
+);
+```
+
+If you need priority during network congestion, you can choose to set a higher fee than the inner fee. 
+
 
 ## Project Structure
 
@@ -156,7 +167,7 @@ pnpm deposit
 This will:
 1. Fetch an unsigned deposit transaction from the DeFindex API
 2. Sign it with the caller's keypair (inner transaction)
-3. Create and sign a fee-bump transaction with the sponsor's keypair
+3. Create and sign a fee-bump transaction with the sponsor's keypair, using the inner transaction fee
 4. Submit the fee-bump transaction to the Stellar network (testnet or mainnet based on `NETWORK` env variable)
 
 ### Running the Withdraw Example
@@ -169,7 +180,12 @@ pnpm withdraw
 
 This follows the same flow but for withdrawing assets from a vault.
 
-## Example Output
+Current withdraw flow in this repo:
+- It first queries the user's vault balance (`getVaultBalance`) to obtain `dfTokens` (shares) and `underlyingBalance` (assets).
+- It withdraws by shares using `withdrawShares`, taking the first element of `dfTokens` as the number of shares to withdraw.
+- The inner transaction is signed by the caller, then wrapped into a fee-bump signed by the sponsor, using the inner transaction fee for the outer fee.
+
+## Example Output (Deposit)
 
 ```
 🚀 Starting fee bump deposit example...
@@ -184,14 +200,8 @@ This follows the same flow but for withdrawing assets from a vault.
 ✍️  Signing inner transaction with caller...
 ✅ Inner transaction signed
 
-💸 Calculating dynamic fee...
-   Inner transaction fee: 100 stroops
-   Base fee: 100
-   Operations: 1
-   Network multiplier: 10
-   Calculated fee bump fee: 1100 stroops
-
 🔄 Creating fee bump transaction...
+✅ Using inner transaction fee for fee-bump
 ✅ Fee bump transaction created and signed by sponsor
 
 📡 Submitting fee bump transaction to network...
@@ -210,9 +220,9 @@ This follows the same flow but for withdrawing assets from a vault.
 For a fee-bump transaction to be valid, it must meet these conditions:
 
 ### Fee Requirements
-- The fee must be ≥ network minimum fee for total operations (inner + 1)
-- The fee must be ≥ the fee specified in the inner transaction
-- For replace-by-fee, the fee must be 10x higher than the first transaction
+- The outer fee must be ≥ the fee specified in the inner transaction
+- The outer fee must be ≥ network minimum fee for total operations (inner + 1)
+- For replace-by-fee, the outer fee should be significantly higher (commonly 10x)
 
 ### Account Requirements
 - Fee account (sponsor) must exist on the ledger
