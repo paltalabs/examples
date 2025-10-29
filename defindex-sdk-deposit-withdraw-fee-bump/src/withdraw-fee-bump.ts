@@ -1,6 +1,5 @@
-import { DefindexSDK, WithdrawParams, SupportedNetworks } from "@defindex/sdk";
+import { DefindexSDK, WithdrawSharesParams, SupportedNetworks, } from "@defindex/sdk";
 import {
-  BASE_FEE,
   Keypair,
   Networks,
   Transaction,
@@ -29,6 +28,7 @@ const supportedNetwork = isMainnet
  * account to pay the transaction fees on behalf of the caller.
  *
  * Key difference from deposit:
+ * - Checks user balance before withdrawing in order to withdaw the total amounts with shares
  * - Uses withdrawFromVault() instead of depositToVault()
  * - Withdraws specific asset amounts from the vault
  * - Can specify slippage tolerance for the withdrawal
@@ -60,35 +60,54 @@ async function main() {
   // Vault address to withdraw from
   const vaultAddress = process.env.VAULT_ADDRESS as string;
 
+  const balanceResponse = await withRateLimit(() =>
+    defindexSdk.getVaultBalance(
+      vaultAddress,
+      callerKeypair.publicKey(),
+      supportedNetwork
+    )
+  );
+  console.log("📦 Balance response received");
+  console.log("✅ Received balance from API");
+  console.log("");
+  
+  const sharesAvailable = (balanceResponse.dfTokens as unknown as any[])[0];
+  const assetsAvailable = (balanceResponse.underlyingBalance as unknown as any[])[0];
+  const sharesToWithdraw = parseInt(String(sharesAvailable), 10);
+
+  console.log("📊 Vault balance:");
+  console.log("   Shares (dfTokens):", sharesAvailable);
+  console.log("   Underlying assets:", assetsAvailable);
+
+
+
   // Withdraw parameters
-  const withdrawData: WithdrawParams = {
-    amounts: [25000000], // Amount to withdraw in stroops (2.5 XLM = 25,000,000 stroops)
+  const withdrawData: WithdrawSharesParams  = {
+    shares: sharesToWithdraw,
     caller: callerKeypair.publicKey(),
-    slippageBps: 100, // 1% slippage tolerance (100 basis points)
   };
 
   console.log("🚀 Starting fee bump withdraw example...");
   console.log("📍 Vault Address:", vaultAddress);
   console.log("👤 Caller:", callerKeypair.publicKey());
   console.log("💰 Sponsor:", sponsorKeypair.publicKey());
-  console.log("💵 Amount:", withdrawData.amounts[0], "stroops");
-  console.log("📊 Slippage:", withdrawData.slippageBps, "bps (basis points)");
+  console.log("💵 Shares to Withdraw:", withdrawData.shares, "shares");
+  console.log("💵 Assets to Withdraw:", assetsAvailable, "assets");
   console.log("");
 
   // Step 1: Get unsigned withdrawal transaction from Defindex API
   console.log("📝 Getting unsigned withdrawal transaction...");
   const withdrawResponse = await withRateLimit(() =>
-    defindexSdk.withdrawFromVault(
-      vaultAddress,
-      withdrawData,
-      supportedNetwork
+    defindexSdk.withdrawShares(
+      vaultAddress, withdrawData, supportedNetwork
     )
   );
+  console.log("📦 Withdraw response received");
   console.log("✅ Received XDR from API");
   console.log("");
-
-  // Step 2: Build transaction from XDR and sign with caller
-  console.log("✍️  Signing inner transaction with caller...");
+  console.log("🧾 Withdraw tx preview:");
+  console.log("   XDR length:", withdrawResponse.xdr?.length ?? 0);
+  console.log("   Hints:", JSON.stringify({ network: network, sponsor: sponsorKeypair.publicKey().slice(0,6)+"..." }));
   const transaction = TransactionBuilder.fromXDR(
     withdrawResponse.xdr,
     stellarNetwork
@@ -97,33 +116,15 @@ async function main() {
   console.log("✅ Inner transaction signed");
   console.log("");
 
-  // Step 3: Calculate dynamic fee for fee bump transaction
-  // Fee bump must be greater than the inner transaction fee
-  console.log("💸 Calculating dynamic fee...");
-  const innerTxFee = parseInt(transaction.fee);
-  const baseFee = parseInt(BASE_FEE);
-  const operationCount = transaction.operations.length;
-  const networkMultiplier = 10; // Adjust based on network congestion
-
-  // Fee bump fee must be at least innerTxFee + (baseFee * operations)
-  const minFeeBumpFee = innerTxFee + baseFee * operationCount;
-  const dynamicFee = Math.max(
-    minFeeBumpFee,
-    innerTxFee * networkMultiplier
-  );
-
-  console.log("   Inner transaction fee:", innerTxFee, "stroops");
-  console.log("   Base fee:", baseFee);
-  console.log("   Operations:", operationCount);
-  console.log("   Network multiplier:", networkMultiplier);
-  console.log("   Calculated fee bump fee:", dynamicFee, "stroops");
-  console.log("");
-
-  // Step 4: Create and sign fee bump transaction with sponsor
+  // Step 3: Create and sign fee bump transaction with sponsor
   console.log("🔄 Creating fee bump transaction...");
+  // The API creates the transaction with a Simulated Resource Fee and a Correct Inclusion Fee.
+  // Create the fee bump transaction with at least the same total fee as the original transaction.
+  // Ref: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929 
+  const innerTxFee = parseInt(transaction.fee);
   const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
     sponsorKeypair,
-    dynamicFee.toString(),
+    innerTxFee.toString(),
     transaction,
     stellarNetwork
   );
