@@ -4,10 +4,8 @@ import  {
   SupportedNetworks,
 } from "@defindex/sdk";
 // add on top with your other stellar imports
-import { rpc } from "@stellar/stellar-sdk";
 
 import {
-  BASE_FEE,
   Keypair,
   Networks,
   Transaction,
@@ -82,7 +80,7 @@ async function main() {
   const depositResponse = await withRateLimit(() =>
     defindexSdk.depositToVault(vaultAddress, depositData, supportedNetwork)
   );
-  console.log("🚀 ~ main ~ depositResponse:", depositResponse)
+  console.log("📦 Deposit response received");
   console.log("✅ Received XDR from API");
   console.log("");
 
@@ -90,26 +88,26 @@ async function main() {
   // Step 2: Build transaction from XDR and sign with caller
   console.log("✍️  Signing inner transaction with caller...");
   const transaction = TransactionBuilder.fromXDR(
-      depositResponse.xdr,
-      stellarNetwork
-    ) as Transaction;
-    transaction.sign(callerKeypair);
-    console.log("✅ Inner transaction signed");
-    console.log("");
+    depositResponse.xdr,
+    stellarNetwork
+  ) as Transaction;
+  transaction.sign(callerKeypair);
+  console.log("✅ Inner transaction signed");
+  console.log("");
 
-    // Step 4: Create and sign fee bump transaction with sponsor
-    console.log("🔄 Creating fee bump transaction...");
+  // Step 4: Create and sign fee bump transaction with sponsor
+  console.log("🔄 Creating fee bump transaction...");
 
     
-    // The API has created the transation with a Simulated Resource Fee and a Correct Inclusion Fee.
-    // The only thing we need to do is to create the Fee Bump Transaction with at least the same total fee as the original transaction.
-    // For more info. Check this thread: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929 
+  // The API creates the transaction with a Simulated Resource Fee and a Correct Inclusion Fee.
+  // Create the fee bump transaction with at least the same total fee as the original transaction.
+  // Ref: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929 
   
-    const innerTxFee = parseInt(transaction.fee);
+  const innerTxFee = parseInt(transaction.fee);
 
   const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
     sponsorKeypair,
-    innerTxFee.toString(), 
+    innerTxFee.toString(),
     transaction,
     stellarNetwork
   );
