@@ -6,13 +6,6 @@ This example demonstrates how to implement **fee-bump transactions** for DeFinde
 
 A **fee-bump transaction** is a Stellar capability (CAP-0015) that enables one account to pay the transaction fees for an existing signed transaction without requiring the original transaction to be re-signed or re-created. This is particularly useful for wallet providers who want to offer "gasless" transactions to their users.
 
-### Key Use Cases
-
-- **Wallet services**: Cover user transaction fees as a service
-- **Dapp sponsorships**: Simplify user experience by absorbing transaction costs
-- **Transaction prioritization**: Increase fees on existing transactions to ensure network inclusion during high congestion
-- **User onboarding**: Improve UX by removing friction from transaction costs
-
 ## How Fee-Bump Transactions Work
 
 A fee-bump transaction consists of two parts:
@@ -113,6 +106,9 @@ pnpm install
 Create a `.env` file in the project root with the following variables:
 
 ```env
+# Network Configuration
+NETWORK=testnet  # Options: "testnet" or "mainnet" (default: "testnet")
+
 # API Configuration
 DEFINDEX_API_KEY=your_api_key_here
 DEFINDEX_API_URL=https://api.defindex.io
@@ -124,6 +120,20 @@ CALLER_SECRET=SDYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY
 # Vault Configuration
 VAULT_ADDRESS=CAXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ```
+
+### Switching Between Testnet and Mainnet
+
+To switch between networks, set the `NETWORK` environment variable in your `.env` file:
+
+- **Testnet (default)**: `NETWORK=testnet`
+- **Mainnet**: `NETWORK=mainnet`
+
+When using Mainnet, make sure:
+- Your accounts have sufficient XLM balance to cover fees
+- You're using mainnet-appropriate vault addresses
+- Your API key has access to mainnet endpoints
+
+For mainnet testing, you can use the USDC Soroswap Earn DeFindex Vault `CA2FIPJ7U6BG3N7EOZFI74XPJZOEOD4TYWXFVCIO5VDCHTVAGS6F4UKK`
 
 ### Getting Testnet Keys
 
@@ -147,7 +157,7 @@ This will:
 1. Fetch an unsigned deposit transaction from the DeFindex API
 2. Sign it with the caller's keypair (inner transaction)
 3. Create and sign a fee-bump transaction with the sponsor's keypair
-4. Submit the fee-bump transaction to the Stellar testnet
+4. Submit the fee-bump transaction to the Stellar network (testnet or mainnet based on `NETWORK` env variable)
 
 ### Running the Withdraw Example
 
@@ -234,8 +244,3 @@ Features:
 - [Stellar Fee-Bump Transactions Documentation](https://developers.stellar.org/docs/build/guides/transactions/fee-bump-transactions)
 - [DeFindex SDK Documentation](https://docs.defindex.io)
 - [Stellar SDK Documentation](https://stellar.github.io/js-stellar-sdk/)
-
-## License
-
-This example is part of the Soroswap examples collection.
-

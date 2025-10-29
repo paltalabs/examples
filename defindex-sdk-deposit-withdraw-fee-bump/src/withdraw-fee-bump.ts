@@ -11,6 +11,16 @@ import { withRateLimit } from "./rate-limiter";
 
 config();
 
+// Get network from environment variable
+const network = process.env.NETWORK?.toLowerCase() || "testnet";
+const isMainnet = network === "mainnet";
+
+// Map network to Stellar SDK networks and DeFindex SDK supported networks
+const stellarNetwork = isMainnet ? Networks.PUBLIC : Networks.TESTNET;
+const supportedNetwork = isMainnet
+  ? SupportedNetworks.MAINNET
+  : SupportedNetworks.TESTNET;
+
 /**
  * Example: Fee Bump Withdraw from Vault
  *
@@ -31,6 +41,8 @@ config();
  * 5. Submit the fee bump transaction to the network
  */
 async function main() {
+  console.log(`🌐 Network: ${network.toUpperCase()}`);
+  console.log("");
   // Sponsor pays the transaction fees
   const sponsorKeypair = Keypair.fromSecret(
     process.env.SPONSOR_SECRET as string
@@ -69,7 +81,7 @@ async function main() {
     defindexSdk.withdrawFromVault(
       vaultAddress,
       withdrawData,
-      SupportedNetworks.TESTNET
+      supportedNetwork
     )
   );
   console.log("✅ Received XDR from API");
@@ -79,7 +91,7 @@ async function main() {
   console.log("✍️  Signing inner transaction with caller...");
   const transaction = TransactionBuilder.fromXDR(
     withdrawResponse.xdr,
-    Networks.TESTNET
+    stellarNetwork
   ) as Transaction;
   transaction.sign(callerKeypair);
   console.log("✅ Inner transaction signed");
@@ -113,7 +125,7 @@ async function main() {
     sponsorKeypair,
     dynamicFee.toString(),
     transaction,
-    Networks.TESTNET
+    stellarNetwork
   );
   feeBumpTx.sign(sponsorKeypair);
   console.log("✅ Fee bump transaction created and signed by sponsor");
@@ -127,14 +139,17 @@ async function main() {
     const response = await withRateLimit(() =>
       defindexSdk.sendTransaction(
         feeBumpXdr,
-        SupportedNetworks.TESTNET
+        supportedNetwork
       )
     );
     console.log("✅ Transaction successful!");
     console.log("📊 Response:", JSON.stringify(response, null, 2));
     console.log("");
+    const explorerNetwork = isMainnet ? "public" : "testnet";
     console.log("🔍 View transaction on Stellar Expert:");
-    console.log(`   https://stellar.expert/explorer/testnet/tx/${response.txHash}`);
+    console.log(
+      `   https://stellar.expert/explorer/${explorerNetwork}/tx/${response.txHash}`
+    );
   } catch (error) {
     console.error("❌ Error sending transaction:", error);
     throw error;
