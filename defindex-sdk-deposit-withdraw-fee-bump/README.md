@@ -4,7 +4,8 @@ This example demonstrates how to implement **fee-bump transactions** for DeFinde
 
 ## Overview
 
-A **fee-bump transaction** is a Stellar capability (CAP-0015) that enables one account to pay the transaction fees for an existing signed transaction without requiring the original transaction to be re-signed or re-created. This is particularly useful for wallet providers who want to offer "gasless" transactions to their users. For more info read: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929  
+A **fee-bump transaction** is a Stellar capability that enables one account to pay the transaction fees for an existing signed transaction without requiring the original transaction to be re-signed or re-created. This is particularly useful for wallet providers who want to offer "gasless" transactions to their users. 
+For more info read: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929  
 
 ## How Fee-Bump Transactions Work
 
@@ -44,50 +45,24 @@ A fee-bump transaction consists of two parts:
 ┌─────────────────────────────────────────────────────────────┐
 │  5. Submit fee-bump transaction to Stellar network         │
 │     ├─ Send signed fee-bump XDR                            │
-│     └─ Network charges fee account (sponsor)               │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## Key Concepts
+## How it Works (TL;DR)
 
-### 1. **Inner Transaction Generation**
-   - The original transaction is created by the DeFindex SDK
-   - Contains the actual operations (deposit, withdraw, etc.)
-   - Containts the necesary Resource Fee and Inclusion Fee.
-   - Must be signed by the user/depositor
-
-### 2. **User Signature**
-   - The user signs the inner transaction with their keypair
-
-### 3. **Fee-Bump Wrapping**
-   - A new transaction envelope wraps the signed inner transaction
-   - The wrapper includes the fee account (sponsor)
-   - Fee-bump transaction fee should be equal to inner transaction fee
-
-### 4. **Sponsor Payment and Signature**
-   - The sponsor's account pays the transaction fees
-   - The sponsor needs to sign the wrapped (outer) transaction.
-
-### 5. **Fee-Bump Fee Rules**
-The fee on the outer fee-bump transaction must satisfy Stellar's rules:
-
-- It must be at least the fee of the inner transaction.
-
-In this repository's scripts, the API already simulates resource usage and sets an appropriate fee on the inner transaction.
+- The DeFindex SDK returns an unsigned inner transaction with the necessary operations and fees (Resource + Inclusion).
+- The user signs this inner transaction with their keypair.
+- The sponsor wraps it in a fee-bump transaction and signs it. Set the fee-bump fee to the inner transaction fee (or higher if you need priority):
 
 ```ts
-const innerTxFee = parseInt(transaction.fee, 10);
-// Optionally bump above inner fee for priority
-const feeBumpFee = Math.max(innerTxFee, innerTxFee * 2);
+const innerTxFee = parseInt(transaction.fee);
 const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
   sponsorKeypair,
-  feeBumpFee.toString(),
+  innerTxFee.toString(),
   transaction,
   stellarNetwork
 );
 ```
-
-If you need priority during network congestion, you can choose to set a higher fee than the inner fee. 
 
 
 ## Project Structure
