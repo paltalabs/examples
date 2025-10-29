@@ -121,6 +121,7 @@ async function main() {
   // The API creates the transaction with a Simulated Resource Fee and a Correct Inclusion Fee.
   // Create the fee bump transaction with at least the same total fee as the original transaction.
   // Ref: https://discord.com/channels/897514728459468821/1432786430739877929/1432786430739877929 
+  
   const innerTxFee = parseInt(transaction.fee);
   const feeBumpTx = TransactionBuilder.buildFeeBumpTransaction(
     sponsorKeypair,
